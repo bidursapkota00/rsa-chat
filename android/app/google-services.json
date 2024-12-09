@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1050661056229",
+    "project_id": "chat-csit",
+    "storage_bucket": "chat-csit.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1050661056229:android:ce31ea041aa74208cf6e0c",
+        "android_client_info": {
+          "package_name": "com.example.chatapp_flutter"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC2t2LrgEBzgwrDrj120NbMsVUSRTDAljM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
