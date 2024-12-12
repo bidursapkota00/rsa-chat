@@ -129,6 +129,7 @@ class _ChatPageState extends State<ChatPage> {
                     .update({
                   'videoCall': true,
                   'videoTime': Timestamp.now(),
+                  'caller': _authService.getCurrentUser()!.email,
                 });
 
                 // Navigate to the video call page

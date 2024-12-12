@@ -40,6 +40,7 @@ class AuthService {
           'modulus': modulus.toString(),
           'videoCall': false,
           'videoTime': null,
+          'caller': null,
         },
         SetOptions(merge: true),
       );

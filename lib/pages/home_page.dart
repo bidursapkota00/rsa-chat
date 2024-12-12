@@ -100,13 +100,15 @@ class HomePage extends StatelessWidget {
         final userData = snapshot.data!.data() as Map<String, dynamic>;
         final bool videoCall = userData['videoCall'] ?? false;
         final Timestamp? videoTime = userData['videoTime'];
+        final String? caller = userData['caller'];
 
         if (videoCall &&
             videoTime != null &&
+            caller != null &&
             DateTime.now().difference(videoTime.toDate()).inMinutes < 2) {
           // Show the incoming call dialog
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            _showIncomingCallDialog(context, userData['uid']);
+            _showIncomingCallDialog(context, caller);
           });
         }
 
@@ -115,14 +117,14 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  void _showIncomingCallDialog(BuildContext context, String callerID) {
+  void _showIncomingCallDialog(BuildContext context, String caller) {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) {
         return AlertDialog(
           title: const Text("Incoming Video Call"),
-          content: const Text("You have an incoming video call."),
+          content: Text("Call From: $caller"),
           actions: [
             TextButton(
               onPressed: () {
