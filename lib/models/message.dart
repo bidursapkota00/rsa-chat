@@ -15,15 +15,25 @@ class Message {
     required this.timestamp,
   });
 
-  // convert to a map
-  Map<String, dynamic> toMap () {
+  // Convert to a map
+  Map<String, dynamic> toMap() {
     return {
       'senderID': senderID,
-      'senderEmail': receiverID,
+      'senderEmail': senderEmail,
       'receiverID': receiverID,
       'message': message,
       'timestamp': timestamp,
     };
   }
-}
 
+  // Create a Message object from a map
+  factory Message.fromMap(Map<String, dynamic> map) {
+    return Message(
+      senderID: map['senderID'] as String,
+      senderEmail: map['senderEmail'] as String,
+      receiverID: map['receiverID'] as String,
+      message: map['message'] as String,
+      timestamp: map['timestamp'] as Timestamp,
+    );
+  }
+}

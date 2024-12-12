@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:chatapp_flutter/services/encrypt/rsa.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class ChatService {
   //get instance of firestore & auth
@@ -22,14 +24,48 @@ class ChatService {
     });
   }
 
-  //send message
+  Future<void> _storeLocalMessage(String chatroomID, Message message) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    // Fetch existing messages from local storage
+    List<String> messages = prefs.getStringList(chatroomID) ?? [];
+
+    // Add the new message with the timestamp converted to milliseconds
+    Map<String, dynamic> messageMap = message.toMap();
+    messageMap['timestamp'] =
+        message.timestamp.millisecondsSinceEpoch; // Convert Timestamp
+
+    messages.add(jsonEncode(messageMap));
+
+    // Save back to local storage
+    await prefs.setStringList(chatroomID, messages);
+  }
+
+  Future<List<Message>> _getLocalMessages(String chatroomID) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    // Fetch existing messages from local storage
+    List<String> messages = prefs.getStringList(chatroomID) ?? [];
+
+    // Convert to Message objects
+    return messages.map((e) {
+      Map<String, dynamic> messageMap = jsonDecode(e);
+
+      // Convert milliseconds back to Timestamp
+      messageMap['timestamp'] =
+          Timestamp.fromMillisecondsSinceEpoch(messageMap['timestamp']);
+
+      return Message.fromMap(messageMap);
+    }).toList();
+  }
+
+  // Send message
   Future<void> sendMessage(String receiverID, String message) async {
-    // Get current user info
     final String currentUserID = _auth.currentUser!.uid;
     final String currentUserEmail = _auth.currentUser!.email!;
     final Timestamp timestamp = Timestamp.now();
 
-    // Fetch the receiver's public key and modulus
+    // Fetch receiver's public key and modulus
     DocumentSnapshot receiverSnapshot =
         await _firestore.collection("Users").doc(receiverID).get();
 
@@ -46,64 +82,74 @@ class ChatService {
     RSA rsa = RSA();
     String encryptedMessage = rsa.encrypt(message, publicKey, modulus);
 
-    // Create a new message object with the encrypted message
+    // Create a new message object
     Message newMessage = Message(
       senderID: currentUserID,
       senderEmail: currentUserEmail,
       receiverID: receiverID,
-      message: encryptedMessage, // Encrypted message
+      message: encryptedMessage,
       timestamp: timestamp,
     );
 
-    // Construct chat room ID for the two users (sorted to ensure uniqueness)
+    // Construct chat room ID
     List<String> ids = [currentUserID, receiverID];
-    ids.sort(); // Sort the IDs to ensure the chatroomID is consistent
+    ids.sort();
     String chatroomID = ids.join('_');
 
-    // Add the new encrypted message to the database
+    // Save the message to Firestore
     await _firestore
         .collection("chat_rooms")
         .doc(chatroomID)
         .collection("messages")
         .add(newMessage.toMap());
+
+    // Save unencrypted message to local storage
+    Message localMessage = Message(
+      senderID: currentUserID,
+      senderEmail: currentUserEmail,
+      receiverID: receiverID,
+      message: message, // Store plain text message locally
+      timestamp: timestamp,
+    );
+    await _storeLocalMessage(chatroomID, localMessage);
   }
 
-  //get messages
+  // Get messages
   Future<Stream<List<Message>>> getMessages(String otherUserID) async {
-    // Get the current user's ID
     final String currentUserID = _auth.currentUser!.uid;
 
-    // Retrieve the private key of the current user from secure storage
+    // Retrieve private key
     final FlutterSecureStorage secureStorage = FlutterSecureStorage();
     String? privateKeyString =
         await secureStorage.read(key: 'privateKey_$currentUserID');
 
     if (privateKeyString == null) {
-      throw Exception("Private key not found for the current user");
+      throw Exception("Private key not found");
     }
 
-    // Parse the private key
     BigInt privateKey = BigInt.parse(privateKeyString);
 
-    // Retrieve the current user's modulus from Firestore
+    // Retrieve modulus
     DocumentSnapshot currentUserDoc =
         await _firestore.collection('Users').doc(currentUserID).get();
 
     if (!currentUserDoc.exists ||
         !(currentUserDoc.data() as Map<String, dynamic>)
             .containsKey('modulus')) {
-      throw Exception("Modulus not found for the current user");
+      throw Exception("Modulus not found");
     }
 
-    // Parse the modulus of the current user
     BigInt modulus = BigInt.parse(currentUserDoc['modulus']);
 
-    // Construct chat room ID for the two users (sorted to ensure uniqueness)
+    // Construct chat room ID
     List<String> ids = [currentUserID, otherUserID];
-    ids.sort(); // Sort the IDs to ensure the chatroomID is consistent
+    ids.sort();
     String chatRoomID = ids.join('_');
 
-    // Stream the messages and decrypt them
+    // Fetch local messages
+    List<Message> localMessages = await _getLocalMessages(chatRoomID);
+
+    // Stream Firestore messages
     return _firestore
         .collection("chat_rooms")
         .doc(chatRoomID)
@@ -111,28 +157,34 @@ class ChatService {
         .orderBy("timestamp", descending: false)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        // Get the encrypted message data
+      // Combine Firestore and local messages
+      List<Message> messages = snapshot.docs.map((doc) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
 
-        // Decrypt the message using the current user's private key
-        String encryptedMessage = data['message'];
-        RSA rsa = RSA();
+        if (data['senderID'] == currentUserID) {
+          // Return locally stored message for the current user
+          return localMessages.firstWhere(
+              (msg) =>
+                  msg.timestamp.millisecondsSinceEpoch ==
+                  data['timestamp'].millisecondsSinceEpoch,
+              orElse: () => Message.fromMap(data));
+        } else {
+          // Decrypt message for messages from the other user
+          RSA rsa = RSA();
+          String decryptedMessage =
+              rsa.decrypt(data['message'], privateKey, modulus);
 
-        // Decrypt the message
-        String decryptedMessage =
-            rsa.decrypt(encryptedMessage, privateKey, modulus);
-
-        // Create the Message object with the decrypted message
-        return Message(
-          senderID: data['senderID'],
-          senderEmail: data['senderEmail'],
-          receiverID: data['receiverID'],
-          message:
-              "Decrypted: " + decryptedMessage, // Use the decrypted message
-          timestamp: data['timestamp'],
-        );
+          return Message(
+            senderID: data['senderID'],
+            senderEmail: data['senderEmail'],
+            receiverID: data['receiverID'],
+            message: decryptedMessage,
+            timestamp: data['timestamp'],
+          );
+        }
       }).toList();
+
+      return messages;
     });
   }
 }

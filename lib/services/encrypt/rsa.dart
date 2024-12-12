@@ -128,13 +128,6 @@ class RSA {
     List<String> encryptedNumbers = cipherText.split(',');
     StringBuffer decryptedMessage = StringBuffer();
 
-    print('hello1');
-    print('hello2');
-    print('hello3');
-    print('hello4');
-    print(privateKey);
-    print(encryptedNumbers.toString());
-
     for (String encryptedNumber in encryptedNumbers) {
       // Convert each number back to BigInt
       BigInt encryptedChar = BigInt.parse(encryptedNumber);
