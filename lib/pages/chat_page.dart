@@ -2,7 +2,8 @@ import 'package:chatapp_flutter/components/chat_bubble.dart';
 import 'package:chatapp_flutter/components/my_textfield.dart';
 import 'package:chatapp_flutter/services/auth/auth_service.dart';
 import 'package:chatapp_flutter/services/chat/chat_service.dart';
-// import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:chatapp_flutter/pages/video_call.dart';
 import 'package:flutter/material.dart';
 import 'package:chatapp_flutter/models/message.dart';
 
@@ -107,6 +108,45 @@ class _ChatPageState extends State<ChatPage> {
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.grey,
         elevation: 0,
+        actions: [
+          // Audio call icon
+          IconButton(
+            icon: const Icon(Icons.call, color: Colors.grey),
+            onPressed: () {
+              // Handle audio call action here
+              print('Audio call initiated');
+            },
+          ),
+          // Video call icon
+          IconButton(
+            icon: const Icon(Icons.videocam, color: Colors.grey),
+            onPressed: () async {
+              try {
+                // Update the receiver's videoCall property to true
+                await FirebaseFirestore.instance
+                    .collection('Users')
+                    .doc(widget.receiverID)
+                    .update({
+                  'videoCall': true,
+                  'videoTime': Timestamp.now(),
+                });
+
+                // Navigate to the video call page
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) =>
+                          VideoCall(receiverID: widget.receiverID)),
+                );
+              } catch (e) {
+                // Handle errors gracefully
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Failed to initiate video call: $e')),
+                );
+              }
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [

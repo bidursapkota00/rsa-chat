@@ -17,42 +17,6 @@ class AuthService {
     return _auth.currentUser;
   }
 
-  // Future<UserCredential> signInWithEmailPassword(
-  //     String email, String password) async {
-  //   try {
-  //     // Sign user in
-  //     UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-  //       email: email,
-  //       password: password,
-  //     );
-
-  //     RSAKeyPair keyPair = rsa.generateKeyPair();
-  //     BigInt publicKey = keyPair.publicKey;
-  //     BigInt privateKey = keyPair.privateKey;
-  //     BigInt modulus = keyPair.modulus;
-
-  //     // Save or update user info (e.g., add a field if it doesn't exist)
-  //     _firestore.collection("Users").doc(userCredential.user!.uid).set(
-  //       {
-  //         'uid': userCredential.user!.uid,
-  //         'email': email,
-  //         'publicKey': publicKey.toString(),
-  //         'modulus': modulus.toString(),
-  //       },
-  //       SetOptions(merge: true), // Merge with existing data
-  //     );
-
-  //     await _secureStorage.write(
-  //       key: 'privateKey_${userCredential.user!.uid}',
-  //       value: privateKey.toString(),
-  //     );
-
-  //     return userCredential;
-  //   } on FirebaseAuthException catch (e) {
-  //     throw Exception(e.code);
-  //   }
-  // }
-
   Future<UserCredential> signUpWithEmailPassword(
       String email, String password) async {
     try {
@@ -74,6 +38,8 @@ class AuthService {
           'email': email,
           'publicKey': publicKey.toString(),
           'modulus': modulus.toString(),
+          'videoCall': false,
+          'videoTime': null,
         },
         SetOptions(merge: true),
       );
