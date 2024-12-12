@@ -72,19 +72,31 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  //send message
+  // void scrollDown2() {
+  //   _scrollController.jumpTo(
+  //     _scrollController.position.maxScrollExtent,
+  //   );
+  // }
+
   void sendMessage() async {
-    //if there is something inside the textfield
     if (_messageController.text.isNotEmpty) {
-      //send the message
-      await _chatService.sendMessage(
-          widget.receiverID, _messageController.text);
+      String plainTextMessage = _messageController.text;
 
-      //clear text controller
+      // Send the encrypted message
+      await _chatService.sendMessage(widget.receiverID, plainTextMessage);
+
+      // Clear the text field
       _messageController.clear();
-    }
 
-    scrollDown();
+      // Refresh the chat page
+      setState(() {});
+
+      // Delay scrolling until the page rebuilds
+      // Future.delayed(
+      //   const Duration(milliseconds: 600),
+      //   () => scrollDown2(),
+      // );
+    }
   }
 
   @override
@@ -138,6 +150,9 @@ class _ChatPageState extends State<ChatPage> {
             if (!streamSnapshot.hasData || streamSnapshot.data!.isEmpty) {
               return const Center(child: Text("No messages yet"));
             }
+
+            // Snap to the bottom when new messages arrive
+            WidgetsBinding.instance.addPostFrameCallback((_) => scrollDown());
 
             // Render the list of messages
             List<Message> messages = streamSnapshot.data!;
